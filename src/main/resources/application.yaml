@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: planification-model-service
+  devtools:
+    restart:
+      enabled: false
+    livereload:
+      enabled: false
+
+server:
+  port: 9090
+
+# Simulation default configuration
+simulation:
+  default-tick-interval-ms: 500
+  vrr-quantum: 4
+  mlfq-quantums: [2, 4, 8]
+
+logging:
+  level:
+    co.edu.uptc.planification_model_service: DEBUG

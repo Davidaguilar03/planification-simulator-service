@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Planificación de CPU</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+<header>
+    <h1>⚙️ Simulador de Planificación de CPU</h1>
+    <p class="subtitle">VRR · MLFQ · SRTF — Comparación en tiempo real</p>
+</header>
+
+<main>
+    <!-- PANEL DE CONFIGURACIÓN -->
+    <section id="config-panel" class="card">
+        <h2>Configuración</h2>
+
+        <div class="config-grid">
+            <div class="config-group">
+                <h3>Procesos</h3>
+                <div id="process-list"></div>
+                <button id="btn-add-process" class="btn btn-secondary">+ Agregar Proceso</button>
+            </div>
+
+            <div class="config-group">
+                <h3>Parámetros</h3>
+                <label>
+                    Velocidad (ms por tick)
+                    <input type="range" id="speed-slider" min="50" max="2000" value="500" step="50">
+                    <span id="speed-label">500 ms</span>
+                </label>
+                <label>
+                    Quantum VRR
+                    <input type="number" id="vrr-quantum" value="4" min="1" max="20">
+                </label>
+                <label>
+                    MLFQ Q0
+                    <input type="number" id="mlfq-q0" value="2" min="1" max="20">
+                </label>
+                <label>
+                    MLFQ Q1
+                    <input type="number" id="mlfq-q1" value="4" min="1" max="20">
+                </label>
+                <label>
+                    MLFQ Q2
+                    <input type="number" id="mlfq-q2" value="8" min="1" max="20">
+                </label>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button id="btn-start" class="btn btn-primary">▶ Iniciar Simulación</button>
+            <button id="btn-stop" class="btn btn-danger" disabled>■ Detener</button>
+        </div>
+    </section>
+
+    <!-- SIMULACIÓN EN TIEMPO REAL -->
+    <section id="simulation-panel" class="card hidden">
+        <div class="sim-header">
+            <h2>Simulación en curso</h2>
+            <div class="sim-controls">
+                <span id="tick-counter" class="badge">Tick: 0</span>
+                <label class="speed-control">
+                    Velocidad:
+                    <input type="range" id="live-speed" min="50" max="2000" value="500" step="50">
+                    <span id="live-speed-label">500 ms</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="algorithms-grid">
+            <div class="algo-card" id="panel-VRR">
+                <h3 class="algo-title vrr">VRR</h3>
+                <div class="cpu-indicator">
+                    <span class="cpu-label">CPU:</span>
+                    <span class="cpu-process" id="cpu-VRR">IDLE</span>
+                </div>
+                <div class="queue-display" id="queues-VRR"></div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar vrr-bar" id="progress-VRR" style="width:0%"></div>
+                </div>
+                <span class="progress-text" id="progress-text-VRR">0 / 0</span>
+            </div>
+
+            <div class="algo-card" id="panel-MLFQ">
+                <h3 class="algo-title mlfq">MLFQ</h3>
+                <div class="cpu-indicator">
+                    <span class="cpu-label">CPU:</span>
+                    <span class="cpu-process" id="cpu-MLFQ">IDLE</span>
+                </div>
+                <div class="queue-display" id="queues-MLFQ"></div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar mlfq-bar" id="progress-MLFQ" style="width:0%"></div>
+                </div>
+                <span class="progress-text" id="progress-text-MLFQ">0 / 0</span>
+            </div>
+
+            <div class="algo-card" id="panel-SRTF">
+                <h3 class="algo-title srtf">SRTF</h3>
+                <div class="cpu-indicator">
+                    <span class="cpu-label">CPU:</span>
+                    <span class="cpu-process" id="cpu-SRTF">IDLE</span>
+                </div>
+                <div class="queue-display" id="queues-SRTF"></div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar srtf-bar" id="progress-SRTF" style="width:0%"></div>
+                </div>
+                <span class="progress-text" id="progress-text-SRTF">0 / 0</span>
+            </div>
+        </div>
+
+        <!-- GANTT -->
+        <div class="gantt-section">
+            <h3>Diagrama de Gantt</h3>
+            <div class="gantt-container">
+                <div class="gantt-row">
+                    <span class="gantt-label">VRR</span>
+                    <div class="gantt-track" id="gantt-VRR"></div>
+                </div>
+                <div class="gantt-row">
+                    <span class="gantt-label">MLFQ</span>
+                    <div class="gantt-track" id="gantt-MLFQ"></div>
+                </div>
+                <div class="gantt-row">
+                    <span class="gantt-label">SRTF</span>
+                    <div class="gantt-track" id="gantt-SRTF"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- RESULTADOS ESTADÍSTICOS -->
+    <section id="results-panel" class="card hidden">
+        <h2>Resultados Estadísticos</h2>
+
+        <div class="stats-table-container">
+            <table id="stats-table">
+                <thead>
+                    <tr>
+                        <th>Métrica</th>
+                        <th class="vrr">VRR</th>
+                        <th class="mlfq">MLFQ</th>
+                        <th class="srtf">SRTF</th>
+                    </tr>
+                </thead>
+                <tbody id="stats-body"></tbody>
+            </table>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-box">
+                <canvas id="chart-comparison"></canvas>
+            </div>
+            <div class="chart-box">
+                <canvas id="chart-cpu"></canvas>
+            </div>
+        </div>
+
+        <button id="btn-new" class="btn btn-primary">🔄 Nueva Simulación</button>
+    </section>
+</main>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
+
