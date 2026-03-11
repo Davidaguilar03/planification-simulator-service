@@ -9,8 +9,6 @@ let simulationId = null;
 let stompClient = null;
 let processCounter = 0;
 let processColorMap = {};
-let comparisonChart = null;
-let cpuChart = null;
 
 document.addEventListener('DOMContentLoaded', init);
 
@@ -297,77 +295,6 @@ function showResults(result) {
         `;
         tbody.appendChild(tr);
     });
-
-    renderCharts(statsByAlgo);
-}
-
-function renderCharts(statsByAlgo) {
-    if (comparisonChart) comparisonChart.destroy();
-    if (cpuChart) cpuChart.destroy();
-
-    const labels = ['Turnaround', 'Waiting', 'Response'];
-    const vrrData = [
-        statsByAlgo['VRR']?.avgTurnaroundTime || 0,
-        statsByAlgo['VRR']?.avgWaitingTime || 0,
-        statsByAlgo['VRR']?.avgResponseTime || 0
-    ];
-    const mlfqData = [
-        statsByAlgo['MLFQ']?.avgTurnaroundTime || 0,
-        statsByAlgo['MLFQ']?.avgWaitingTime || 0,
-        statsByAlgo['MLFQ']?.avgResponseTime || 0
-    ];
-    const srtfData = [
-        statsByAlgo['SRTF']?.avgTurnaroundTime || 0,
-        statsByAlgo['SRTF']?.avgWaitingTime || 0,
-        statsByAlgo['SRTF']?.avgResponseTime || 0
-    ];
-
-    comparisonChart = new Chart(document.getElementById('chart-comparison'), {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [
-                { label: 'VRR', data: vrrData, backgroundColor: COLORS.VRR + 'cc', borderColor: COLORS.VRR, borderWidth: 1 },
-                { label: 'MLFQ', data: mlfqData, backgroundColor: COLORS.MLFQ + 'cc', borderColor: COLORS.MLFQ, borderWidth: 1 },
-                { label: 'SRTF', data: srtfData, backgroundColor: COLORS.SRTF + 'cc', borderColor: COLORS.SRTF, borderWidth: 1 }
-            ]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                title: { display: true, text: 'Comparación de Tiempos', color: '#e4e4e7' },
-                legend: { labels: { color: '#9ca3af' } }
-            },
-            scales: {
-                x: { ticks: { color: '#9ca3af' }, grid: { color: '#2a2d3a' } },
-                y: { ticks: { color: '#9ca3af' }, grid: { color: '#2a2d3a' }, beginAtZero: true }
-            }
-        }
-    });
-
-    cpuChart = new Chart(document.getElementById('chart-cpu'), {
-        type: 'doughnut',
-        data: {
-            labels: ['VRR', 'MLFQ', 'SRTF'],
-            datasets: [{
-                data: [
-                    statsByAlgo['VRR']?.cpuUtilization || 0,
-                    statsByAlgo['MLFQ']?.cpuUtilization || 0,
-                    statsByAlgo['SRTF']?.cpuUtilization || 0
-                ],
-                backgroundColor: [COLORS.VRR + 'cc', COLORS.MLFQ + 'cc', COLORS.SRTF + 'cc'],
-                borderColor: [COLORS.VRR, COLORS.MLFQ, COLORS.SRTF],
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                title: { display: true, text: 'Utilización de CPU (%)', color: '#e4e4e7' },
-                legend: { labels: { color: '#9ca3af' } }
-            }
-        }
-    });
 }
 
 function resetUI() {
@@ -387,8 +314,5 @@ function resetUI() {
         document.getElementById(`progress-text-${a}`).textContent = '0 / 0';
         document.getElementById(`gantt-${a}`).innerHTML = '';
     });
-
-    if (comparisonChart) { comparisonChart.destroy(); comparisonChart = null; }
-    if (cpuChart) { cpuChart.destroy(); cpuChart = null; }
 }
 
