@@ -15,7 +15,7 @@
 
 <header>
     <h1>Simulador de Planificación de CPU</h1>
-    <p class="subtitle">VRR · MLFQ · SRTF — Comparación en tiempo real</p>
+    <p class="subtitle">Round Robin Virtual · Cola Multinivel Realimentada · Menor Tiempo Restante — Comparación en tiempo real</p>
     <button id="btn-tutorial" class="btn btn-secondary tutorial-trigger" type="button">Guía interactiva</button>
 </header>
 
@@ -39,26 +39,26 @@
                     <span id="speed-label">500 ms</span>
                 </label>
                 <label>
-                    Quantum VRR
+                    Quantum Round Robin Virtual
                     <input type="number" id="vrr-quantum" value="4" min="1" max="20">
                 </label>
                 <label>
-                    MLFQ Q0
+                    Cola Multinivel Realimentada Q0
                     <input type="number" id="mlfq-q0" value="2" min="1" max="20">
                 </label>
                 <label>
-                    MLFQ Q1
+                    Cola Multinivel Realimentada Q1
                     <input type="number" id="mlfq-q1" value="4" min="1" max="20">
                 </label>
                 <label>
-                    MLFQ Q2
+                    Cola Multinivel Realimentada Q2
                     <input type="number" id="mlfq-q2" value="8" min="1" max="20">
                 </label>
             </div>
         </div>
 
         <div class="actions">
-            <button id="btn-start" class="btn btn-primary">▶ Iniciar Simulación</button>
+            <button id="btn-start" class="btn btn-primary">Iniciar Simulación</button>
         </div>
     </section>
 
@@ -84,7 +84,7 @@
 
         <div class="algorithms-grid">
             <div class="algo-card" id="panel-VRR">
-                <h3 class="algo-title vrr">VRR</h3>
+                <h3 class="algo-title vrr">Round Robin Virtual</h3>
                 <div class="cpu-indicator">
                     <span class="cpu-label">CPU:</span>
                     <span class="cpu-process" id="cpu-VRR">IDLE</span>
@@ -97,7 +97,7 @@
             </div>
 
             <div class="algo-card" id="panel-MLFQ">
-                <h3 class="algo-title mlfq">MLFQ</h3>
+                <h3 class="algo-title mlfq">Cola Multinivel Realimentada</h3>
                 <div class="cpu-indicator">
                     <span class="cpu-label">CPU:</span>
                     <span class="cpu-process" id="cpu-MLFQ">IDLE</span>
@@ -110,7 +110,7 @@
             </div>
 
             <div class="algo-card" id="panel-SRTF">
-                <h3 class="algo-title srtf">SRTF</h3>
+                <h3 class="algo-title srtf">Menor Tiempo Restante</h3>
                 <div class="cpu-indicator">
                     <span class="cpu-label">CPU:</span>
                     <span class="cpu-process" id="cpu-SRTF">IDLE</span>
@@ -128,15 +128,15 @@
             <h3>Diagrama de Gantt</h3>
             <div class="gantt-container">
                 <div class="gantt-row">
-                    <span class="gantt-label">VRR</span>
+                    <span class="gantt-label">Round Robin Virtual</span>
                     <div class="gantt-track" id="gantt-VRR"></div>
                 </div>
                 <div class="gantt-row">
-                    <span class="gantt-label">MLFQ</span>
+                    <span class="gantt-label">Cola Multinivel Realimentada</span>
                     <div class="gantt-track" id="gantt-MLFQ"></div>
                 </div>
                 <div class="gantt-row">
-                    <span class="gantt-label">SRTF</span>
+                    <span class="gantt-label">Menor Tiempo Restante</span>
                     <div class="gantt-track" id="gantt-SRTF"></div>
                 </div>
             </div>
@@ -152,9 +152,9 @@
                 <thead>
                     <tr>
                         <th>Métrica</th>
-                        <th class="vrr">VRR</th>
-                        <th class="mlfq">MLFQ</th>
-                        <th class="srtf">SRTF</th>
+                        <th class="vrr">Round Robin Virtual</th>
+                        <th class="mlfq">Cola Multinivel Realimentada</th>
+                        <th class="srtf">Menor Tiempo Restante</th>
                     </tr>
                 </thead>
                 <tbody id="stats-body"></tbody>
@@ -162,7 +162,7 @@
         </div>
 
 
-        <button id="btn-new" class="btn btn-primary">🔄 Nueva Simulación</button>
+        <button id="btn-new" class="btn btn-primary">Nueva Simulación</button>
     </section>
 </main>
 
