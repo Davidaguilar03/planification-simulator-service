@@ -302,15 +302,45 @@ main {
 
 .speed-control {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    flex-direction: column;
     gap: 0.5rem;
     font-size: 0.85rem;
     color: var(--text-muted);
 }
 
-.speed-control input[type="range"] {
-    width: 120px;
-    accent-color: var(--primary);
+.speed-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.speed-option {
+    border: 1px solid #3c4f63;
+    background: #19232f;
+    color: #c7d4e4;
+    border-radius: 999px;
+    padding: 0.22rem 0.62rem;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.speed-option:hover {
+    background: #253749;
+    border-color: #5e7f9f;
+}
+
+.speed-option.active {
+    background: rgba(47, 143, 131, 0.22);
+    border-color: #3c9e90;
+    color: #e7f6f3;
+}
+
+#speed-label,
+#live-speed-label {
+    font-size: 0.76rem;
+    color: #9db0c7;
 }
 
 /* ALGORITHM CARDS */
