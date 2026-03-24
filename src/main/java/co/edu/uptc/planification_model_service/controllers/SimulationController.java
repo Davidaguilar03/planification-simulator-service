@@ -1,17 +1,26 @@
 package co.edu.uptc.planification_model_service.controllers;
 
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import co.edu.uptc.planification_model_service.models.SimulationConfig;
 import co.edu.uptc.planification_model_service.models.SimulationResult;
 import co.edu.uptc.planification_model_service.models.TickSnapshot;
 import co.edu.uptc.planification_model_service.models.enums.AlgorithmType;
 import co.edu.uptc.planification_model_service.models.enums.SimulationState;
 import co.edu.uptc.planification_model_service.services.SimulationEngine;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/simulations")
@@ -44,6 +53,24 @@ public class SimulationController {
         Integer ms = body.get("tickIntervalMs");
         if (ms == null || ms <= 0) return ResponseEntity.badRequest().build();
         simulationEngine.setSpeed(id, ms);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/{id}/pause")
+    public ResponseEntity<Void> pauseSimulation(@PathVariable String id) {
+        simulationEngine.pause(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/{id}/resume")
+    public ResponseEntity<Void> resumeSimulation(@PathVariable String id) {
+        simulationEngine.resume(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/{id}/step")
+    public ResponseEntity<Void> stepForward(@PathVariable String id) {
+        simulationEngine.stepForward(id);
         return ResponseEntity.ok().build();
     }
 

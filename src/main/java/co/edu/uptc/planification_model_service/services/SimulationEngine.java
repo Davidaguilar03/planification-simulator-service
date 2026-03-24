@@ -1,22 +1,35 @@
 package co.edu.uptc.planification_model_service.services;
 
-import co.edu.uptc.planification_model_service.models.*;
-import co.edu.uptc.planification_model_service.models.enums.AlgorithmType;
-import co.edu.uptc.planification_model_service.models.enums.SimulationState;
-import co.edu.uptc.planification_model_service.services.algorithms.*;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.scheduling.TaskScheduler;
-import org.springframework.stereotype.Service;
-
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.stereotype.Service;
+
+import co.edu.uptc.planification_model_service.models.SimulationConfig;
+import co.edu.uptc.planification_model_service.models.SimulationProcess;
+import co.edu.uptc.planification_model_service.models.SimulationResult;
+import co.edu.uptc.planification_model_service.models.SimulationStats;
+import co.edu.uptc.planification_model_service.models.TickSnapshot;
+import co.edu.uptc.planification_model_service.models.enums.AlgorithmType;
+import co.edu.uptc.planification_model_service.models.enums.SimulationState;
+import co.edu.uptc.planification_model_service.services.algorithms.MlfqScheduler;
+import co.edu.uptc.planification_model_service.services.algorithms.SchedulingAlgorithm;
+import co.edu.uptc.planification_model_service.services.algorithms.SrtfScheduler;
+import co.edu.uptc.planification_model_service.services.algorithms.VrrScheduler;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -51,17 +64,62 @@ public class SimulationEngine {
     public void stop(String sessionId) {
         SimulationSession session = sessions.get(sessionId);
         if (session == null) return;
-        session.cancel();
-        session.setState(SimulationState.STOPPED);
+        synchronized (session) {
+            if (session.getState() == SimulationState.DONE || session.getState() == SimulationState.STOPPED) {
+                return;
+            }
+            session.cancel();
+            int currentTick = Math.max(0, session.getCurrentTick().get());
+            List<SimulationStats> statsList = new ArrayList<>();
+            for (Map.Entry<AlgorithmType, SchedulingAlgorithm> entry : session.getAlgorithms().entrySet()) {
+                statsList.add(statisticsService.compute(
+                        entry.getKey(),
+                        entry.getValue().getProcesses(),
+                        currentTick,
+                        entry.getValue().getBusyTicks()));
+            }
+            session.setStats(statsList);
+            session.setState(SimulationState.STOPPED);
+        }
+    }
+
+    public void pause(String sessionId) {
+        SimulationSession session = sessions.get(sessionId);
+        if (session == null) return;
+        synchronized (session) {
+            if (session.getState() != SimulationState.RUNNING) return;
+            session.cancel();
+            session.setState(SimulationState.PAUSED);
+        }
+    }
+
+    public void resume(String sessionId) {
+        SimulationSession session = sessions.get(sessionId);
+        if (session == null) return;
+        synchronized (session) {
+            if (session.getState() != SimulationState.PAUSED) return;
+            scheduleSession(session);
+        }
+    }
+
+    public void stepForward(String sessionId) {
+        SimulationSession session = sessions.get(sessionId);
+        if (session == null) return;
+        synchronized (session) {
+            if (session.getState() != SimulationState.PAUSED) return;
+            executeTickInternal(session, false);
+        }
     }
 
     public void setSpeed(String sessionId, int tickIntervalMs) {
         SimulationSession session = sessions.get(sessionId);
         if (session == null) return;
-        session.cancel();
-        session.getConfig().setTickIntervalMs(tickIntervalMs);
-        if (session.getState() == SimulationState.RUNNING) {
-            scheduleSession(session);
+        synchronized (session) {
+            session.cancel();
+            session.getConfig().setTickIntervalMs(tickIntervalMs);
+            if (session.getState() == SimulationState.RUNNING) {
+                scheduleSession(session);
+            }
         }
     }
 
@@ -89,14 +147,19 @@ public class SimulationEngine {
     private void scheduleSession(SimulationSession session) {
         Duration interval = Duration.ofMillis(session.getConfig().getTickIntervalMs());
         ScheduledFuture<?> future = taskScheduler.scheduleAtFixedRate(
-                () -> executeTick(session), interval);
+                () -> executeTickScheduled(session), interval);
         session.setFuture(future);
         session.setState(SimulationState.RUNNING);
     }
 
-    private void executeTick(SimulationSession session) {
-        if (session.getState() != SimulationState.RUNNING) return;
+    private void executeTickScheduled(SimulationSession session) {
+        synchronized (session) {
+            if (session.getState() != SimulationState.RUNNING) return;
+            executeTickInternal(session, true);
+        }
+    }
 
+    private void executeTickInternal(SimulationSession session, boolean keepRunning) {
         int tick = session.getCurrentTick().getAndIncrement();
         boolean allDone = true;
 
@@ -123,6 +186,11 @@ public class SimulationEngine {
 
         if (allDone) {
             finalizeSimulation(session, tick);
+            return;
+        }
+
+        if (!keepRunning && session.getState() == SimulationState.PAUSED) {
+            session.cancel();
         }
     }
 
