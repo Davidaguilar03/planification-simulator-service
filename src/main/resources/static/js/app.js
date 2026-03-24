@@ -5,6 +5,13 @@ const PROCESS_COLORS = [
     '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#6366f1'
 ];
 const ALGORITHMS = ['VRR', 'MLFQ', 'SRTF'];
+const SPEED_PRESETS = [
+    { label: 'Muy lenta', ms: 2200 },
+    { label: 'Lenta', ms: 1700 },
+    { label: 'Normal', ms: 1300 },
+    { label: 'Rapida', ms: 950 },
+    { label: 'Muy rapida', ms: 700 }
+];
 
 let simulationId = null;
 let stompClient = null;
@@ -16,6 +23,8 @@ let isPaused = false;
 let reviewTick = null;
 let simulationDone = false;
 let controlsBusy = false;
+let selectedConfigSpeedMs = 1300;
+let selectedLiveSpeedMs = 1300;
 let tutorialState = {
     active: false,
     steps: [],
@@ -37,13 +46,6 @@ document.addEventListener('DOMContentLoaded', init);
 function init() {
     addDefaultProcesses();
     bindEvents();
-    setTutorialButtonVisibility(true);
-}
-
-function setTutorialButtonVisibility(isVisible) {
-    const btnTutorial = document.getElementById('btn-tutorial');
-    if (!btnTutorial) return;
-    btnTutorial.classList.toggle('hidden', !isVisible);
 }
 
 function bindEvents() {
@@ -56,22 +58,7 @@ function bindEvents() {
     document.getElementById('btn-new').addEventListener('click', onNewSimulationClick);
     document.getElementById('btn-tutorial').addEventListener('click', startTutorial);
 
-    document.getElementById('speed-slider').addEventListener('input', e => {
-        document.getElementById('speed-label').textContent = e.target.value + ' ms';
-    });
-
-    document.getElementById('live-speed').addEventListener('input', e => {
-        document.getElementById('live-speed-label').textContent = e.target.value + ' ms';
-    });
-
-    document.getElementById('live-speed').addEventListener('change', e => {
-        if (!simulationId) return;
-        fetch(`${API}/${simulationId}/speed`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tickIntervalMs: parseInt(e.target.value) })
-        });
-    });
+    setupSpeedPresets();
 
     window.addEventListener('resize', positionTutorialTooltip);
     window.addEventListener('scroll', positionTutorialTooltip, true);
@@ -82,6 +69,64 @@ function bindEvents() {
     });
 
     updatePlaybackControlStates();
+}
+
+function setupSpeedPresets() {
+    const configButtons = document.querySelectorAll('#speed-preset-config .speed-option');
+    const liveButtons = document.querySelectorAll('#speed-preset-live .speed-option');
+
+    configButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const ms = parseInt(btn.dataset.ms);
+            setSpeedPreset('config', ms, false);
+        });
+    });
+
+    liveButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const ms = parseInt(btn.dataset.ms);
+            setSpeedPreset('live', ms, true);
+        });
+    });
+
+    setSpeedPreset('config', selectedConfigSpeedMs, false);
+    setSpeedPreset('live', selectedLiveSpeedMs, false);
+}
+
+function formatSpeedLabel(ms) {
+    const preset = SPEED_PRESETS.find(p => p.ms === ms);
+    const name = preset ? preset.label : 'Personalizada';
+    return `${name} · ${ms} ms por tick`;
+}
+
+function setSpeedPreset(target, ms, notifyServer) {
+    const buttons = document.querySelectorAll(`#speed-preset-${target} .speed-option`);
+    buttons.forEach(btn => {
+        const buttonMs = parseInt(btn.dataset.ms);
+        btn.classList.toggle('active', buttonMs === ms);
+    });
+
+    const labelId = target === 'config' ? 'speed-label' : 'live-speed-label';
+    const labelEl = document.getElementById(labelId);
+    if (labelEl) {
+        labelEl.textContent = formatSpeedLabel(ms);
+    }
+
+    if (target === 'config') {
+        selectedConfigSpeedMs = ms;
+        return;
+    }
+
+    selectedLiveSpeedMs = ms;
+    if (!notifyServer || !simulationId) {
+        return;
+    }
+
+    fetch(`${API}/${simulationId}/speed`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tickIntervalMs: ms })
+    });
 }
 
 function startTutorial() {
@@ -171,13 +216,13 @@ function buildTutorialSteps() {
         },
         {
             title: 'Paso 5: Velocidad de simulacion',
-            text: 'Este control define si la simulacion corre lenta o rapida desde el inicio.',
-            selector: '#speed-slider'
+            text: 'Aqui eliges una de cinco velocidades faciles de entender para iniciar la simulacion.',
+            selector: '#speed-preset-config'
         },
         {
             title: 'Paso 6: Ajustes de algoritmos',
             text: 'Aqui ajustas quantums. Son limites de tiempo que cambian el comportamiento de Round Robin Virtual y Cola Multinivel Realimentada.',
-            selector: '#vrr-quantum'
+            selector: '#algorithm-params'
         },
         {
             title: 'Paso 7: Ejecutar',
@@ -454,14 +499,67 @@ function positionTutorialTooltip() {
 
     if (tutorialState.highlightedEl) {
         const rect = tutorialState.highlightedEl.getBoundingClientRect();
-        const canFitBelow = rect.bottom + tooltip.offsetHeight + margin < window.innerHeight;
-        const canFitAbove = rect.top - tooltip.offsetHeight - margin > 0;
 
-        top = canFitBelow
-            ? rect.bottom + margin
-            : (canFitAbove ? rect.top - tooltip.offsetHeight - margin : margin);
+        const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
+        const clampTop = value => clamp(value, margin, window.innerHeight - tooltip.offsetHeight - margin);
+        const clampLeft = value => clamp(value, margin, window.innerWidth - tooltip.offsetWidth - margin);
 
-        left = rect.left + rect.width / 2 - tooltip.offsetWidth / 2;
+        const targetCenterX = rect.left + rect.width / 2;
+        const targetCenterY = rect.top + rect.height / 2;
+
+        const candidates = [
+            { top: rect.bottom + margin, left: targetCenterX - tooltip.offsetWidth / 2 }, // below
+            { top: rect.top - tooltip.offsetHeight - margin, left: targetCenterX - tooltip.offsetWidth / 2 }, // above
+            { top: targetCenterY - tooltip.offsetHeight / 2, left: rect.right + margin }, // right
+            { top: targetCenterY - tooltip.offsetHeight / 2, left: rect.left - tooltip.offsetWidth - margin } // left
+        ].map(pos => ({
+            top: clampTop(pos.top),
+            left: clampLeft(pos.left)
+        }));
+
+        const paddedTarget = {
+            left: rect.left - 6,
+            top: rect.top - 6,
+            right: rect.right + 6,
+            bottom: rect.bottom + 6
+        };
+
+        const scoreCandidate = candidate => {
+            const tooltipRect = {
+                left: candidate.left,
+                top: candidate.top,
+                right: candidate.left + tooltip.offsetWidth,
+                bottom: candidate.top + tooltip.offsetHeight
+            };
+
+            const overlapWidth = Math.max(0, Math.min(tooltipRect.right, paddedTarget.right) - Math.max(tooltipRect.left, paddedTarget.left));
+            const overlapHeight = Math.max(0, Math.min(tooltipRect.bottom, paddedTarget.bottom) - Math.max(tooltipRect.top, paddedTarget.top));
+            const overlapArea = overlapWidth * overlapHeight;
+
+            const tooltipCenterX = candidate.left + tooltip.offsetWidth / 2;
+            const tooltipCenterY = candidate.top + tooltip.offsetHeight / 2;
+            const distance = Math.hypot(tooltipCenterX - targetCenterX, tooltipCenterY - targetCenterY);
+
+            return { overlapArea, distance };
+        };
+
+        let bestCandidate = candidates[0];
+        let bestScore = scoreCandidate(bestCandidate);
+
+        for (let i = 1; i < candidates.length; i++) {
+            const candidate = candidates[i];
+            const score = scoreCandidate(candidate);
+            const betterOverlap = score.overlapArea < bestScore.overlapArea;
+            const sameOverlapCloser = score.overlapArea === bestScore.overlapArea && score.distance < bestScore.distance;
+
+            if (betterOverlap || sameOverlapCloser) {
+                bestCandidate = candidate;
+                bestScore = score;
+            }
+        }
+
+        top = bestCandidate.top;
+        left = bestCandidate.left;
     }
 
     top = Math.max(margin, Math.min(top, window.innerHeight - tooltip.offsetHeight - margin));
@@ -754,7 +852,7 @@ async function startSimulation() {
     const processes = collectProcesses();
     if (processes.length === 0) return;
 
-    const speed = parseInt(document.getElementById('speed-slider').value);
+    const speed = selectedConfigSpeedMs;
     const config = {
         processes: processes,
         tickIntervalMs: speed,
@@ -785,9 +883,7 @@ async function startSimulation() {
         document.getElementById('config-panel').classList.add('hidden');
         document.getElementById('simulation-panel').classList.remove('hidden');
         document.getElementById('results-panel').classList.add('hidden');
-        setTutorialButtonVisibility(false);
-        document.getElementById('live-speed').value = speed;
-        document.getElementById('live-speed-label').textContent = speed + ' ms';
+        setSpeedPreset('live', speed, false);
 
         clearGantt();
         connectWebSocket();
@@ -894,7 +990,6 @@ function updateGantt(snapshot) {
 
 function showResults(result) {
     document.getElementById('results-panel').classList.remove('hidden');
-    setTutorialButtonVisibility(true);
     simulationDone = true;
     isPaused = true;
     reviewTick = null;
@@ -948,7 +1043,6 @@ function resetUI() {
     document.getElementById('config-panel').classList.remove('hidden');
     document.getElementById('simulation-panel').classList.add('hidden');
     document.getElementById('results-panel').classList.add('hidden');
-    setTutorialButtonVisibility(true);
     document.getElementById('tick-counter').textContent = 'Tick: 0';
 
     ['VRR', 'MLFQ', 'SRTF'].forEach(a => {

@@ -16,7 +16,6 @@
 <header>
     <h1>Simulador de Planificación de CPU</h1>
     <p class="subtitle">Round Robin Virtual · Cola Multinivel Realimentada · Menor Tiempo Restante — Comparación en tiempo real</p>
-    <button id="btn-tutorial" class="btn btn-secondary tutorial-trigger" type="button">Guía interactiva</button>
 </header>
 
 <main>
@@ -31,12 +30,18 @@
                 <button id="btn-add-process" class="btn btn-secondary">+ Agregar Proceso</button>
             </div>
 
-            <div class="config-group">
+            <div class="config-group" id="algorithm-params">
                 <h3>Parámetros</h3>
                 <label>
-                    Velocidad (ms por tick)
-                    <input type="range" id="speed-slider" min="50" max="2000" value="500" step="50">
-                    <span id="speed-label">500 ms</span>
+                    Velocidad (5 niveles)
+                    <div class="speed-presets" id="speed-preset-config" role="group" aria-label="Velocidad inicial">
+                        <button type="button" class="speed-option" data-ms="2200">Muy lenta</button>
+                        <button type="button" class="speed-option" data-ms="1700">Lenta</button>
+                        <button type="button" class="speed-option active" data-ms="1300">Normal</button>
+                        <button type="button" class="speed-option" data-ms="950">Rápida</button>
+                        <button type="button" class="speed-option" data-ms="700">Muy rápida</button>
+                    </div>
+                    <span id="speed-label">Normal · 1300 ms por tick</span>
                 </label>
                 <label>
                     Quantum Round Robin Virtual
@@ -58,6 +63,7 @@
         </div>
 
         <div class="actions">
+            <button id="btn-tutorial" class="btn btn-secondary" type="button">Guía interactiva</button>
             <button id="btn-start" class="btn btn-primary">Iniciar Simulación</button>
         </div>
     </section>
@@ -76,8 +82,14 @@
                 </div>
                 <label class="speed-control">
                     Velocidad:
-                    <input type="range" id="live-speed" min="50" max="2000" value="500" step="50">
-                    <span id="live-speed-label">500 ms</span>
+                    <div class="speed-presets" id="speed-preset-live" role="group" aria-label="Velocidad en vivo">
+                        <button type="button" class="speed-option" data-ms="2200">Muy lenta</button>
+                        <button type="button" class="speed-option" data-ms="1700">Lenta</button>
+                        <button type="button" class="speed-option active" data-ms="1300">Normal</button>
+                        <button type="button" class="speed-option" data-ms="950">Rápida</button>
+                        <button type="button" class="speed-option" data-ms="700">Muy rápida</button>
+                    </div>
+                    <span id="live-speed-label">Normal · 1300 ms por tick</span>
                 </label>
             </div>
         </div>
