@@ -546,9 +546,25 @@ main {
 .tutorial-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(8, 10, 17, 0.78);
     z-index: 2000;
+    pointer-events: none;
+}
+
+.tutorial-overlay-part {
+    position: fixed;
+    background: rgba(8, 10, 17, 0.78);
     backdrop-filter: blur(1px);
+    pointer-events: auto;
+}
+
+.tutorial-highlight-box {
+    position: fixed;
+    z-index: 2100;
+    border: 2px solid rgba(133, 160, 186, 0.95);
+    border-radius: 14px;
+    box-shadow: 0 0 0 5px rgba(133, 160, 186, 0.2);
+    pointer-events: none;
+    animation: tutorialGlow 1.5s ease-in-out infinite;
 }
 
 .tutorial-highlight {
@@ -570,8 +586,8 @@ main {
 }
 
 @keyframes tutorialGlow {
-    0%, 100% { border-color: rgba(133, 160, 186, 0.92); box-shadow: 0 0 0 5px rgba(133, 160, 186, 0.2), 0 0 0 9999px rgba(8, 10, 17, 0.62); }
-    50% { border-color: rgba(161, 186, 208, 0.98); box-shadow: 0 0 0 7px rgba(133, 160, 186, 0.26), 0 0 0 9999px rgba(8, 10, 17, 0.62); }
+    0%, 100% { border-color: rgba(133, 160, 186, 0.92); box-shadow: 0 0 0 5px rgba(133, 160, 186, 0.2); }
+    50% { border-color: rgba(161, 186, 208, 0.98); box-shadow: 0 0 0 7px rgba(133, 160, 186, 0.26); }
 }
 
 .tutorial-tooltip {
@@ -599,6 +615,16 @@ main {
     font-size: 0.93rem;
     color: #163c2f;
     line-height: 1.52;
+    margin-bottom: 0.75rem;
+}
+
+.tutorial-step-note {
+    font-size: 0.8rem;
+    color: #6b2c11;
+    background: rgba(236, 179, 132, 0.28);
+    border: 1px solid rgba(194, 122, 77, 0.5);
+    border-radius: 8px;
+    padding: 0.45rem 0.55rem;
     margin-bottom: 0.75rem;
 }
 
