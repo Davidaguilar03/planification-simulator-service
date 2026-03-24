@@ -21,7 +21,10 @@ let tutorialState = {
     steps: [],
     index: 0,
     overlay: null,
+    overlayParts: null,
     tooltip: null,
+    highlightBox: null,
+    completedActions: {},
     highlightedEl: null
 };
 
@@ -50,7 +53,7 @@ function bindEvents() {
     document.getElementById('btn-pause').addEventListener('click', togglePauseResume);
     document.getElementById('btn-next').addEventListener('click', stepNextTick);
     document.getElementById('btn-prev').addEventListener('click', stepPreviousTick);
-    document.getElementById('btn-new').addEventListener('click', resetUI);
+    document.getElementById('btn-new').addEventListener('click', onNewSimulationClick);
     document.getElementById('btn-tutorial').addEventListener('click', startTutorial);
 
     document.getElementById('speed-slider').addEventListener('input', e => {
@@ -92,17 +95,35 @@ function startTutorial() {
     tutorialState.active = true;
     tutorialState.steps = steps;
     tutorialState.index = 0;
+    tutorialState.completedActions = {};
 
     document.body.classList.add('tutorial-active');
 
     tutorialState.overlay = document.createElement('div');
     tutorialState.overlay.className = 'tutorial-overlay';
-    tutorialState.overlay.addEventListener('click', () => refreshTutorialStep(true));
+
+    tutorialState.overlayParts = {
+        top: document.createElement('div'),
+        left: document.createElement('div'),
+        right: document.createElement('div'),
+        bottom: document.createElement('div')
+    };
+    Object.values(tutorialState.overlayParts).forEach(part => {
+        part.className = 'tutorial-overlay-part';
+        part.addEventListener('click', () => refreshTutorialStep(true));
+        tutorialState.overlay.appendChild(part);
+    });
+
     document.body.appendChild(tutorialState.overlay);
 
     tutorialState.tooltip = document.createElement('div');
     tutorialState.tooltip.className = 'tutorial-tooltip';
     document.body.appendChild(tutorialState.tooltip);
+
+    tutorialState.highlightBox = document.createElement('div');
+    tutorialState.highlightBox.className = 'tutorial-highlight-box';
+    tutorialState.highlightBox.style.display = 'none';
+    document.body.appendChild(tutorialState.highlightBox);
 
     renderTutorialStep();
 }
@@ -113,9 +134,13 @@ function stopTutorial() {
 
     if (tutorialState.overlay) tutorialState.overlay.remove();
     if (tutorialState.tooltip) tutorialState.tooltip.remove();
+    if (tutorialState.highlightBox) tutorialState.highlightBox.remove();
 
     tutorialState.overlay = null;
+    tutorialState.overlayParts = null;
     tutorialState.tooltip = null;
+    tutorialState.highlightBox = null;
+    tutorialState.completedActions = {};
     tutorialState.steps = [];
     tutorialState.index = 0;
 
@@ -213,6 +238,7 @@ function buildTutorialSteps() {
             selector: '#btn-new',
             waitForVisible: true,
             fallbackSelector: '#results-panel',
+            requiredAction: 'newSimulation',
             waitingText: 'Este boton aparece cuando ya existen resultados en pantalla.'
         }
     ];
@@ -224,24 +250,27 @@ function renderTutorialStep() {
     const step = tutorialState.steps[tutorialState.index];
     const target = resolveTutorialTarget(step);
     const blocked = step.waitForVisible && !isElementVisible(step.selector);
+    const actionRequired = !!step.requiredAction;
+    const actionDone = !actionRequired || isStepActionCompleted(step.requiredAction);
 
     clearTutorialHighlight();
     if (target) {
         tutorialState.highlightedEl = target;
-        target.classList.add('tutorial-highlight');
         target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        positionTutorialHighlightBox();
     }
 
     const text = blocked && step.waitingText ? step.waitingText : step.text;
     tutorialState.tooltip.innerHTML = `
         <div class="tutorial-step-title">${step.title}</div>
         <div class="tutorial-step-text">${text}</div>
+        ${actionRequired && !actionDone ? '<div class="tutorial-step-note">Para continuar, primero realiza la accion en pantalla.</div>' : ''}
         <div class="tutorial-progress">Paso ${tutorialState.index + 1} de ${tutorialState.steps.length}</div>
         <div class="tutorial-actions">
             <button class="btn btn-secondary" id="tutorial-skip">Saltar guia</button>
             <button class="btn btn-secondary" id="tutorial-prev" ${tutorialState.index === 0 ? 'disabled' : ''}>Atras</button>
             ${blocked ? '<button class="btn btn-secondary" id="tutorial-retry">Reintentar</button>' : ''}
-            <button class="btn btn-primary" id="tutorial-next">${tutorialState.index === tutorialState.steps.length - 1 ? 'Finalizar' : 'Siguiente'}</button>
+            <button class="btn btn-primary" id="tutorial-next" ${(blocked || !actionDone) ? 'disabled' : ''}>${tutorialState.index === tutorialState.steps.length - 1 ? 'Finalizar' : 'Siguiente'}</button>
         </div>
     `;
 
@@ -271,23 +300,121 @@ function isElementVisible(selector) {
     const el = document.querySelector(selector);
     if (!el) return false;
 
-    const style = window.getComputedStyle(el);
-    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-        return false;
+    // Check the whole ancestor chain to avoid highlighting elements inside hidden panels.
+    let current = el;
+    while (current) {
+        const style = window.getComputedStyle(current);
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+            return false;
+        }
+        if (current.classList && current.classList.contains('hidden')) {
+            return false;
+        }
+        current = current.parentElement;
     }
 
-    if (el.classList.contains('hidden')) {
-        return false;
-    }
-
-    return true;
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
 }
 
 function clearTutorialHighlight() {
-    if (tutorialState.highlightedEl) {
-        tutorialState.highlightedEl.classList.remove('tutorial-highlight');
+    if (tutorialState.highlightBox) {
+        tutorialState.highlightBox.style.display = 'none';
     }
+    updateTutorialOverlayCutout(null);
     tutorialState.highlightedEl = null;
+}
+
+function isStepActionCompleted(actionName) {
+    return tutorialState.completedActions[actionName] === true;
+}
+
+function markTutorialActionCompleted(actionName) {
+    if (!actionName) return;
+    tutorialState.completedActions[actionName] = true;
+}
+
+function onNewSimulationClick() {
+    const inRequiredStep = tutorialState.active
+        && tutorialState.steps[tutorialState.index]
+        && tutorialState.steps[tutorialState.index].requiredAction === 'newSimulation';
+
+    if (inRequiredStep) {
+        markTutorialActionCompleted('newSimulation');
+    }
+
+    resetUI();
+
+    if (inRequiredStep && tutorialState.active) {
+        changeTutorialStep(1);
+    }
+}
+
+function updateTutorialOverlayCutout(rect) {
+    if (!tutorialState.overlayParts) return;
+
+    const top = tutorialState.overlayParts.top;
+    const left = tutorialState.overlayParts.left;
+    const right = tutorialState.overlayParts.right;
+    const bottom = tutorialState.overlayParts.bottom;
+
+    if (!rect) {
+        top.style.top = '0';
+        top.style.left = '0';
+        top.style.width = '100vw';
+        top.style.height = '100vh';
+
+        left.style.width = '0';
+        right.style.width = '0';
+        bottom.style.height = '0';
+        return;
+    }
+
+    const cutTop = Math.max(0, rect.top);
+    const cutLeft = Math.max(0, rect.left);
+    const cutRight = Math.min(window.innerWidth, rect.left + rect.width);
+    const cutBottom = Math.min(window.innerHeight, rect.top + rect.height);
+
+    top.style.top = '0px';
+    top.style.left = '0px';
+    top.style.width = '100vw';
+    top.style.height = `${cutTop}px`;
+
+    bottom.style.top = `${cutBottom}px`;
+    bottom.style.left = '0px';
+    bottom.style.width = '100vw';
+    bottom.style.height = `${Math.max(0, window.innerHeight - cutBottom)}px`;
+
+    left.style.top = `${cutTop}px`;
+    left.style.left = '0px';
+    left.style.width = `${cutLeft}px`;
+    left.style.height = `${Math.max(0, cutBottom - cutTop)}px`;
+
+    right.style.top = `${cutTop}px`;
+    right.style.left = `${cutRight}px`;
+    right.style.width = `${Math.max(0, window.innerWidth - cutRight)}px`;
+    right.style.height = `${Math.max(0, cutBottom - cutTop)}px`;
+}
+
+function positionTutorialHighlightBox() {
+    if (!tutorialState.active || !tutorialState.highlightBox || !tutorialState.highlightedEl) return;
+
+    const rect = tutorialState.highlightedEl.getBoundingClientRect();
+    const padding = 12;
+    const top = Math.max(6, rect.top - padding);
+    const left = Math.max(6, rect.left - padding);
+    const width = Math.max(20, rect.width + (padding * 2));
+    const height = Math.max(20, rect.height + (padding * 2));
+
+    tutorialState.highlightBox.style.top = `${top}px`;
+    tutorialState.highlightBox.style.left = `${left}px`;
+    const finalWidth = Math.min(width, window.innerWidth - left - 6);
+    const finalHeight = Math.min(height, window.innerHeight - top - 6);
+    tutorialState.highlightBox.style.width = `${finalWidth}px`;
+    tutorialState.highlightBox.style.height = `${finalHeight}px`;
+    tutorialState.highlightBox.style.display = 'block';
+
+    updateTutorialOverlayCutout({ top, left, width: finalWidth, height: finalHeight });
 }
 
 function changeTutorialStep(delta) {
@@ -316,6 +443,8 @@ function refreshTutorialStep(forceRerender = false) {
 
 function positionTutorialTooltip() {
     if (!tutorialState.active || !tutorialState.tooltip) return;
+
+    positionTutorialHighlightBox();
 
     const tooltip = tutorialState.tooltip;
     const margin = 12;
