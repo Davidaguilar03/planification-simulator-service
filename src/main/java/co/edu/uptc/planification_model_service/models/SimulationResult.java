@@ -19,8 +19,6 @@ public class SimulationResult {
     private SimulationState state;
     private int currentTick;
     private List<SimulationStats> stats;
-
-    /** Full tick history per algorithm: algorithmType.name() -> list of snapshots */
     private Map<String, List<TickSnapshot>> tickHistory;
 }
 

@@ -12,12 +12,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class SimulationStats {
     private AlgorithmType algorithmType;
-    private double cpuUtilization;        // percentage 0-100
-    private double throughput;             // processes per tick
+    private double cpuUtilization;
+    private double throughput;
     private double avgTurnaroundTime;
     private double avgWaitingTime;
     private double avgResponseTime;
-    private double fairnessIndex;          // Jain's fairness index 0-1
+    private double fairnessIndex;
     private int totalTicks;
     private int completedProcesses;
 }
