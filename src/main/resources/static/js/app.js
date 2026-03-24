@@ -176,7 +176,7 @@ function buildTutorialSteps() {
         },
         {
             title: 'Paso 6: Ajustes de algoritmos',
-            text: 'Aqui ajustas quantums. Son limites de tiempo que cambian el comportamiento de VRR y MLFQ.',
+            text: 'Aqui ajustas quantums. Son limites de tiempo que cambian el comportamiento de Round Robin Virtual y Cola Multinivel Realimentada.',
             selector: '#vrr-quantum'
         },
         {

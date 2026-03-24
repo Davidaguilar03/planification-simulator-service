@@ -264,14 +264,14 @@ main {
 }
 
 .player-btn {
-    width: 36px;
+    min-width: 84px;
     height: 36px;
     border-radius: 999px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0;
-    font-size: 1rem;
+    padding: 0 0.75rem;
+    font-size: 0.78rem;
     background: #2a3142;
     color: #e4e4e7;
     border: 1px solid #39445f;
@@ -449,8 +449,8 @@ main {
 }
 
 .gantt-label {
-    min-width: 50px;
-    font-size: 0.8rem;
+    min-width: 240px;
+    font-size: 0.74rem;
     font-weight: 600;
     color: var(--text-muted);
 }
@@ -502,9 +502,9 @@ main {
 #stats-table th {
     background: var(--bg);
     font-weight: 600;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
+    font-size: 0.72rem;
+    text-transform: none;
+    letter-spacing: 0.01em;
 }
 
 #stats-table th:first-child,
